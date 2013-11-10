@@ -151,25 +151,73 @@ static uint8_t getAltitude(portTickType tick_count)
 }
 
 
-#include "gpssatellites.h"
+#include "gpsposition.h"
 #include "systemalarms.h"
 #include "flightstatus.h"
 static uint8_t getStatus(portTickType tick_count)
 {
 	STATIC_ASSERT(OUT_QUEUE_SIZE>=1, out_queue_size);
-	GPSSatellitesData gpsSatellites;
+	GPSPositionData gpsPosition;
 	FlightStatusData flightStatus;
 	if (FlightStatusGet(&flightStatus))
 		return 0;
-	if (GPSSatellitesGet(&gpsSatellites))
+	if (GPSPositionGet(&gpsPosition))
 		return 0;
 
 	out_queue_id[0] = ID_FUEL_LEVEL;
-	if (gpsSatellites.SatsInView > 9)
-		gpsSatellites.SatsInView = 9;
-	out_queue_data[0] = gpsSatellites.SatsInView + 10 * flightStatus.FlightMode +
-						((flightStatus.Armed + flightStatus.ControlSource * 10) << 8);
+	if (gpsPosition.Satellites > 9)
+		gpsPosition.Satellites = 9;
+	if (gpsPosition.Status != GPSPOSITION_STATUS_FIX3D)
+		gpsPosition.Satellites = 0;
+	out_queue_data[0] = gpsPosition.Satellites + 10 * flightStatus.FlightMode +
+						flightStatus.Armed * 100 + flightStatus.ControlSource * 1000;
 	return 1;
+}
+
+#include "gpsposition.h"
+static uint8_t getPosition(portTickType tick_count)
+{
+	STATIC_ASSERT(OUT_QUEUE_SIZE>=6, out_queue_size);
+	GPSPositionData gpsPosition;
+	int32_t degrees;
+	
+	if (GPSPositionGet(&gpsPosition))
+		return 0;
+
+	if (gpsPosition.Status != GPSPOSITION_STATUS_FIX2D && gpsPosition.Status != GPSPOSITION_STATUS_FIX3D)
+		/* no pos. don't send to avoid overriding the last position */
+		return 0;
+	
+	out_queue_id[0] = ID_E_W;
+	out_queue_id[1] = ID_LONGITUDE_AP;
+	out_queue_id[2] = ID_LONGITUDE_BP;
+	out_queue_id[3] = ID_N_S;
+	out_queue_id[4] = ID_LATITUDE_AP;
+	out_queue_id[5] = ID_LATITUDE_BP;
+
+	if (gpsPosition.Longitude < 0) {
+		out_queue_data[0] = 'W';
+		gpsPosition.Longitude = -gpsPosition.Longitude;
+	} else {
+		out_queue_data[0] = 'E';
+	}
+	degrees = gpsPosition.Longitude / 10000000;
+	gpsPosition.Longitude = (gpsPosition.Longitude % 10000000) * 6; /* result is in min * 10e-6 */
+	out_queue_data[1] = (gpsPosition.Longitude % 1000000) / 100;
+	out_queue_data[2] = 100 * degrees + gpsPosition.Longitude / 1000000;
+	
+	if (gpsPosition.Latitude  < 0) {
+		out_queue_data[3] = 'S';
+		gpsPosition.Latitude = -gpsPosition.Latitude;
+	} else {
+		out_queue_data[3] = 'N';
+	}
+	degrees = gpsPosition.Latitude / 10000000;
+	gpsPosition.Latitude = (gpsPosition.Latitude % 10000000) * 6; /* result is in min * 10e-6 */
+	out_queue_data[4] = (gpsPosition.Latitude % 1000000) / 100;
+	out_queue_data[5] = 100 * degrees + gpsPosition.Latitude / 1000000;
+
+	return 6;
 }
 
 #include "gpstime.h"
@@ -205,10 +253,41 @@ static uint8_t getGpsTime(portTickType tick_count)
 	return 4;
 }
 
+#include "attitudeactual.h"
+static uint8_t getAttitudeYaw(portTickType tick_count)
+{
+	STATIC_ASSERT(OUT_QUEUE_SIZE>=2, out_queue_size);
+	AttitudeActualData attitudeActualData;
+	if (AttitudeActualGet(&attitudeActualData))
+		return 0;
+	
+#   if 0
+	/* more appropriate, but not supported by er9x frsky mode */
+	out_queue_id[0] = ID_COURSE_AP;
+	out_queue_id[1] = ID_COURSE_BP;
+#else
+	out_queue_id[0] = ID_GPS_SPEED_AP;
+	out_queue_id[1] = ID_GPS_SPEED_BP;
+#endif
+
+	while (attitudeActualData.Yaw < 0)
+		attitudeActualData.Yaw += 360;
+	while (attitudeActualData.Yaw > 360)
+		attitudeActualData.Yaw -= 360;
+		
+	out_queue_data[1] = attitudeActualData.Yaw;
+	out_queue_data[0] = (attitudeActualData.Yaw - out_queue_data[1]) * 100;
+	
+	return 2;
+}
+
+
 static const Spec_t specs[] = {
-	{ getGpsTime, 1000 },
+	{ getGpsTime, 2200 },
 	{ getStatus, 10},
-	{ getAltitude, 500 }
+	{ getAltitude, 500 },
+	{ getAttitudeYaw, 500 },
+	{ getPosition, 900 },
 };
 
 static const size_t specs_size = sizeof(specs) / sizeof(specs[0]);

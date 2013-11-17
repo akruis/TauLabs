@@ -165,10 +165,11 @@ static uint8_t getStatus(portTickType tick_count)
 		return 0;
 
 	out_queue_id[0] = ID_FUEL_LEVEL;
-	if (gpsPosition.Satellites > 9)
-		gpsPosition.Satellites = 9;
+	gpsPosition.Satellites -= 3;
 	if (gpsPosition.Status != GPSPOSITION_STATUS_FIX3D)
 		gpsPosition.Satellites = 0;
+	if (gpsPosition.Satellites > 9)
+		gpsPosition.Satellites = 9;
 	out_queue_data[0] = gpsPosition.Satellites + 10 * flightStatus.FlightMode +
 						flightStatus.Armed * 100 + flightStatus.ControlSource * 1000;
 	return 1;

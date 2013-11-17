@@ -1,0 +1,13 @@
+<xml>
+    <object name="RollAndPitchRotation" singleinstance="true" settings="false">
+        <description>Information about the rotation of roll and pitch.</description>
+        <field name="RollBeforeRotation" units="%" type="float" elements="1"/>
+        <field name="PitchBeforeRotation" units="%" type="float" elements="1"/>
+        <field name="YawOffset" units="degrees" type="float" elements="1"/>
+        <field name="Rotation" units="degrees" type="float" elements="1"/>
+        <access gcs="readwrite" flight="readwrite"/>
+        <telemetrygcs acked="false" updatemode="manual" period="0"/>
+        <telemetryflight acked="false" updatemode="periodic" period="2000"/>
+        <logging updatemode="manual" period="0"/>
+    </object>
+</xml>

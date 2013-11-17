@@ -240,6 +240,7 @@ SRC += $(OPUAVSYNTHDIR)/flightbatterysettings.c
 SRC += $(OPUAVSYNTHDIR)/adcrouting.c
 SRC += $(OPUAVSYNTHDIR)/trimanglessettings.c
 SRC += $(OPUAVSYNTHDIR)/trimangles.c
+SRC += $(OPUAVSYNTHDIR)/rollandpitchrotation.c
 endif
 
 ## PIOS Hardware (STM32F10x)

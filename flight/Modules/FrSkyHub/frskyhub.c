@@ -281,12 +281,41 @@ static uint8_t getAttitudeYaw(portTickType tick_count)
 	return 2;
 }
 
+#include "rollandpitchrotation.h"
+static uint8_t getRollAndPitchRotation(portTickType tick_count)
+{
+	STATIC_ASSERT(OUT_QUEUE_SIZE>=2, out_queue_size);
+	RollAndPitchRotationData rollAndPitchRotationData;
+	if (RollAndPitchRotationGet(&rollAndPitchRotationData))
+		return 0;
+	
+#   if 0
+	/* more appropriate, but not supported by er9x frsky mode */
+	out_queue_id[0] = ID_COURSE_AP;
+	out_queue_id[1] = ID_COURSE_BP;
+#else
+	out_queue_id[0] = ID_GPS_SPEED_AP;
+	out_queue_id[1] = ID_GPS_SPEED_BP;
+#endif
+	
+	if (rollAndPitchRotationData.YawOffset >= 0) { 
+		out_queue_data[1] = rollAndPitchRotationData.Rotation;
+		out_queue_data[0] = (rollAndPitchRotationData.Rotation - out_queue_data[1]) * 100;
+	} else {
+		out_queue_data[1] = -1;
+		out_queue_data[0] = 0;
+	}
+	
+	return 2;
+}
+
 
 static const Spec_t specs[] = {
 	{ getGpsTime, 2200 },
 	{ getStatus, 10},
 	{ getAltitude, 500 },
-	{ getAttitudeYaw, 500 },
+	{ getAttitudeYaw, 0 },
+	{ getRollAndPitchRotation, 500 },
 	{ getPosition, 900 },
 };
 

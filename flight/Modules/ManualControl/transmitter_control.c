@@ -52,6 +52,7 @@
 #include "stabilizationsettings.h"
 #include "stabilizationdesired.h"
 #include "systemsettings.h"
+#include "magnetometer.h"
 
 #if defined(PIOS_INCLUDE_USB_RCTX)
 #include "pios_usb_rctx.h"
@@ -1195,15 +1196,35 @@ static void rotate_roll_and_pitch(ManualControlCommandData * cmd, float yawOffse
 	
 	if (! RollAndPitchRotationReadOnly()) {
 		float attitudeYaw, rotation;
-		AttitudeActualYawGet(&attitudeYaw);
-	
+		AttitudeActualData attitudeData;
+#if 0
+		AttitudeActualGet(&attitudeData);
+		attitudeYaw = attitudeData.Yaw;
+#else
+		MagnetometerData magnetometerData;
+
+		AttitudeActualGet(&attitudeData);
+		MagnetometerGet(&magnetometerData);
+		attitudeYaw = -atan2f(magnetometerData.y, magnetometerData.x) * ((float)(180.0 / M_PI));
+		while (attitudeYaw < 0)
+			attitudeYaw += 360;
+		while (attitudeYaw > 360)
+			attitudeYaw -= 360;
+#endif
 		rollAndPitchRotation.RollBeforeRotation = cmd->Roll;
 		rollAndPitchRotation.PitchBeforeRotation = cmd->Pitch;
+		rollAndPitchRotation.MagneticYaw = attitudeYaw;
+		rotation = attitudeYaw - attitudeData.Yaw;
+		while (rotation < -180)
+			rotation += 360;
+		while (rotation > 180)
+			rotation -= 360;
+		rollAndPitchRotation.YawDelta = rotation;
 
 		if (yawOffset < 0) {
 			/* disabled */
-			yawOffset = -1;
-			rotation  = 0;
+			rollAndPitchRotation.YawOffset = -1;
+			rollAndPitchRotation.Rotation = 0;
 		} else {
 			/* convert to degrees, [0,1] -> [-10°, 370°] */
 			yawOffset -= (float)(10.0 / 360.0);
@@ -1212,16 +1233,18 @@ static void rotate_roll_and_pitch(ManualControlCommandData * cmd, float yawOffse
 				yawOffset += 360;
 			while (yawOffset > 360)
 				yawOffset -= 360;
-	
-			rotation = attitudeYaw - yawOffset;
-			while (rotation < 0)
-				rotation += 360;
-			while (rotation > 360)
-				rotation -= 360;
+
+			if (fabs(attitudeData.Roll) < 40 && fabs(attitudeData.Pitch) < 40) {
+				rotation = attitudeYaw - yawOffset;
+				while (rotation < 0)
+					rotation += 360;
+				while (rotation > 360)
+					rotation -= 360;
+				rollAndPitchRotation.Rotation = rotation;
+			}
+			rollAndPitchRotation.YawOffset = yawOffset;
 		}
 
-		rollAndPitchRotation.YawOffset = yawOffset;
-		rollAndPitchRotation.Rotation = rotation;
 		RollAndPitchRotationSet(&rollAndPitchRotation);
 	}
 	if (rollAndPitchRotation.YawOffset >= 0 && rollAndPitchRotation.Rotation)

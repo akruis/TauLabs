@@ -36,7 +36,7 @@ DEBUG ?= NO
 # @endgroup Compile Options
 # List of modules to include
 MODULES = Sensors
-MODULES += Attitude/revolution 
+MODULES += Attitude 
 MODULES += Actuator
 MODULES += ManualControl
 MODULES += Stabilization
@@ -58,6 +58,7 @@ OPTMODULES += VibrationAnalysis
 OPTMODULES += UAVOMavlinkBridge
 OPTMODULES += ComUsbBridge
 OPTMODULES += Airspeed/revolution
+OPTMODULES += UAVOHoTTBridge
 
 PYMODULES = 
 #FlightPlan

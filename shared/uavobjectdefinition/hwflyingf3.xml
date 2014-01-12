@@ -18,6 +18,7 @@
 				<option>MavLinkTX_GPS_RX</option>
 				<option>HoTT SUMD</option>
 				<option>HoTT SUMH</option>
+				<option>HoTT Telemetry</option>
 				<option>FrSkyHub</option>
 			</options>
 		</field>
@@ -37,6 +38,7 @@
 				<option>MavLinkTX_GPS_RX</option>
 				<option>HoTT SUMD</option>
 				<option>HoTT SUMH</option>
+				<option>HoTT Telemetry</option>
 				<option>FrSkyHub</option>
 			</options>
 		</field>
@@ -56,6 +58,7 @@
 				<option>MavLinkTX_GPS_RX</option>
 				<option>HoTT SUMD</option>
 				<option>HoTT SUMH</option>
+				<option>HoTT Telemetry</option>
 				<option>FrSkyHub</option>
 			</options>
 		</field>
@@ -75,6 +78,7 @@
 				<option>MavLinkTX_GPS_RX</option>
 				<option>HoTT SUMD</option>
 				<option>HoTT SUMH</option>
+				<option>HoTT Telemetry</option>
 				<option>FrSkyHub</option>
 			</options>
 		</field>
@@ -94,6 +98,7 @@
 				<option>MavLinkTX_GPS_RX</option>
 				<option>HoTT SUMD</option>
 				<option>HoTT SUMH</option>
+				<option>HoTT Telemetry</option>
 				<option>FrSkyHub</option>
 			</options>
 		</field>

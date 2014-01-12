@@ -32,6 +32,7 @@
 			<elementname>UAVORelay</elementname>
 			<elementname>VibrationAnalysis</elementname>
 			<elementname>Battery</elementname>
+			<elementname>UAVOHoTTBridge</elementname>
 			<elementname>FrSkyHub</elementname>
 		</elementnames>
 	</field> 
@@ -66,6 +67,7 @@
 			<elementname>UAVORelay</elementname>
 			<elementname>VibrationAnalysis</elementname>
 			<elementname>Battery</elementname>
+			<elementname>UAVOHoTTBridge</elementname>
 			<elementname>FrSkyHub</elementname>
 		</elementnames>
 		<options>
@@ -104,6 +106,7 @@
 			<elementname>UAVORelay</elementname>
 			<elementname>VibrationAnalysis</elementname>
 			<elementname>Battery</elementname>
+			<elementname>UAVOHoTTBridge</elementname>
 			<elementname>FrSkyHub</elementname>
 		</elementnames>
 	</field> 

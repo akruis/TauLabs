@@ -60,7 +60,7 @@ endif
 
 # List of modules to include
 MODULES = Sensors 
-MODULES += Attitude/revolution
+MODULES += Attitude
 MODULES += ManualControl
 MODULES += Stabilization
 MODULES += Actuator
@@ -80,6 +80,7 @@ OPTMODULES += UAVOMavlinkBridge
 OPTMODULES += Battery
 OPTMODULES += VibrationAnalysis
 OPTMODULES += Airspeed/revolution
+OPTMODULES += UAVOHoTTBridge
 
 PYMODULES = 
 #FlightPlan

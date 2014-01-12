@@ -33,7 +33,7 @@ DEBUG ?= NO
 
 # List of modules to include
 MODULES = Sensors
-MODULES += Attitude/revolution 
+MODULES += Attitude 
 MODULES += ManualControl
 MODULES += Stabilization
 MODULES += Actuator
@@ -55,6 +55,7 @@ OPTMODULES += Battery
 OPTMODULES += VibrationAnalysis
 OPTMODULES += UAVOMavlinkBridge
 OPTMODULES += Airspeed/revolution
+OPTMODULES += UAVOHoTTBridge
 
 # Paths
 OPUAVTALKINC = $(OPUAVTALK)/inc

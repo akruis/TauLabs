@@ -165,6 +165,8 @@ uintptr_t pios_rcvr_group_map[MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE];
 #define PIOS_COM_HOTT_TX_BUF_LEN 16
 #define PIOS_COM_FRSKYSENSORHUB_TX_BUF_LEN 128
 
+#define PIOS_COM_FRSKYHUB_TX_BUF_LEN 10
+
 #if defined(PIOS_INCLUDE_DEBUG_CONSOLE)
 #define PIOS_COM_DEBUGCONSOLE_TX_BUF_LEN 40
 uintptr_t pios_com_debug_id;
@@ -182,6 +184,7 @@ uintptr_t pios_com_frsky_sensor_hub_id;
 uintptr_t pios_com_lighttelemetry_id;
 uintptr_t pios_com_overo_id;
 uintptr_t pios_com_can_id;
+uintptr_t pios_com_frskyhub_id;
 
 uintptr_t pios_uavo_settings_fs_id;
 uintptr_t pios_waypoints_settings_fs_id;
@@ -679,6 +682,10 @@ void PIOS_Board_Init(void) {
 		PIOS_Board_configure_com(&pios_usart1_cfg, 0, PIOS_COM_LIGHTTELEMETRY_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_lighttelemetry_id);
 #endif  
 		break;
+	case HWFLYINGF3_UART1_FRSKYHUB:
+#if defined(PIOS_INCLUDE_USART) && defined(PIOS_INCLUDE_COM) && defined(PIOS_INCLUDE_FRSKYHUB)
+		PIOS_Board_configure_com(&pios_usart1_cfg, 0, PIOS_COM_FRSKYHUB_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_frskyhub_id);
+#endif	/* PIOS_INCLUDE_FRSKYHUB */
 	}
 
 
@@ -800,6 +807,10 @@ void PIOS_Board_Init(void) {
 		PIOS_Board_configure_com(&pios_usart2_cfg, 0, PIOS_COM_LIGHTTELEMETRY_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_lighttelemetry_id);
 #endif  
 		break;
+	case HWFLYINGF3_UART2_FRSKYHUB:
+#if defined(PIOS_INCLUDE_USART) && defined(PIOS_INCLUDE_COM) && defined(PIOS_INCLUDE_FRSKYHUB)
+		PIOS_Board_configure_com(&pios_usart2_cfg, 0, PIOS_COM_FRSKYHUB_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_frskyhub_id);
+#endif	/* PIOS_INCLUDE_FRSKYHUB */
 	}
 
 
@@ -920,6 +931,10 @@ void PIOS_Board_Init(void) {
 		PIOS_Board_configure_com(&pios_usart3_cfg, 0, PIOS_COM_LIGHTTELEMETRY_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_lighttelemetry_id);
 #endif  
 		break;
+	case HWFLYINGF3_UART3_FRSKYHUB:
+#if defined(PIOS_INCLUDE_USART) && defined(PIOS_INCLUDE_COM) && defined(PIOS_INCLUDE_FRSKYHUB)
+		PIOS_Board_configure_com(&pios_usart3_cfg, 0, PIOS_COM_FRSKYHUB_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_frskyhub_id);
+#endif	/* PIOS_INCLUDE_FRSKYHUB */
 	}
 
 
@@ -1040,6 +1055,10 @@ void PIOS_Board_Init(void) {
 		PIOS_Board_configure_com(&pios_usart4_cfg, 0, PIOS_COM_LIGHTTELEMETRY_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_lighttelemetry_id);
 #endif  
 		break;
+	case HWFLYINGF3_UART4_FRSKYHUB:
+#if defined(PIOS_INCLUDE_USART) && defined(PIOS_INCLUDE_COM) && defined(PIOS_INCLUDE_FRSKYHUB)
+		PIOS_Board_configure_com(&pios_usart4_cfg, 0, PIOS_COM_FRSKYHUB_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_frskyhub_id);
+#endif	/* PIOS_INCLUDE_FRSKYHUB */
 	}
 
 
@@ -1160,6 +1179,10 @@ void PIOS_Board_Init(void) {
 		PIOS_Board_configure_com(&pios_usart5_cfg, 0, PIOS_COM_LIGHTTELEMETRY_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_lighttelemetry_id);
 #endif  
 		break;
+	case HWFLYINGF3_UART5_FRSKYHUB:
+#if defined(PIOS_INCLUDE_USART) && defined(PIOS_INCLUDE_COM) && defined(PIOS_INCLUDE_FRSKYHUB)
+		PIOS_Board_configure_com(&pios_usart5_cfg, 0, PIOS_COM_FRSKYHUB_TX_BUF_LEN, &pios_usart_com_driver, &pios_com_frskyhub_id);
+#endif	/* PIOS_INCLUDE_FRSKYHUB */
 	}
 
 

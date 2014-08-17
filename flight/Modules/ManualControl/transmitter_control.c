@@ -29,6 +29,8 @@
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <math.h>
+ 
 #include "openpilot.h"
 #include "control.h"
 #include "transmitter_control.h"
@@ -37,6 +39,7 @@
 #include "actuatordesired.h"
 #include "altitudeholddesired.h"
 #include "altitudeholdsettings.h"
+#include "attitudeactual.h"  /* frskyhub */
 #include "baroaltitude.h"
 #include "flighttelemetrystats.h"
 #include "flightstatus.h"
@@ -46,9 +49,11 @@
 #include "pathdesired.h"
 #include "positionactual.h"
 #include "receiveractivity.h"
+#include "rollandpitchrotation.h"
 #include "stabilizationsettings.h"
 #include "stabilizationdesired.h"
 #include "systemsettings.h"
+#include "magnetometer.h"
 
 #include "misc_math.h"
 
@@ -109,6 +114,7 @@ static void resetRcvrActivity(struct rcvr_activity_fsm * fsm);
 static bool updateRcvrActivity(struct rcvr_activity_fsm * fsm);
 static void manual_control_settings_updated(UAVObjEvent * ev);
 static void set_loiter_command(ManualControlCommandData * cmd);
+static void rotate_roll_and_pitch(ManualControlCommandData * cmd, float yawOffset);
 
 #define assumptions (assumptions1 && assumptions3 && assumptions5 && assumptions7 && assumptions8 && assumptions_flightmode && assumptions_channelcount)
 
@@ -125,6 +131,7 @@ int32_t transmitter_control_initialize()
 	StabilizationDesiredInitialize();
 	ReceiverActivityInitialize();
 	ManualControlSettingsInitialize();
+	RollAndPitchRotationInitialize();
 
 	// Both the gimbal and coptercontrol do not support loitering
 #if !defined(COPTERCONTROL) && !defined(GIMBAL)
@@ -318,6 +325,15 @@ int32_t transmitter_control_update()
 		disconnected_count = 0;
 	}
 
+	// Roll
+	bool rollAndPitchRotationReadOnly_desired = settings.RotateRollAndPitch == MANUALCONTROLSETTINGS_ROTATEROLLANDPITCH_GCS;
+	if (rollAndPitchRotationReadOnly_desired == !RollAndPitchRotationReadOnly()) {
+			UAVObjMetadata metadata;
+			RollAndPitchRotationGetMetadata(&metadata);
+			UAVObjSetAccess(&metadata, rollAndPitchRotationReadOnly_desired ? ACCESS_READONLY : ACCESS_READWRITE);
+			RollAndPitchRotationSetMetadata(&metadata);
+	}
+	
 	if (cmd.Connected == MANUALCONTROLCOMMAND_CONNECTED_FALSE) {
 		// These values are not used but just put ManualControlCommand in a sane state.  When
 		// Connected is false, then the failsafe submodule will be in control.
@@ -331,6 +347,7 @@ int32_t transmitter_control_update()
 		set_manual_control_error(SYSTEMALARMS_MANUALCONTROL_NORX);
 
 	} else if (valid_input_detected) {
+		float yawOffset = -1;
 		set_manual_control_error(SYSTEMALARMS_MANUALCONTROL_NONE);
 
 		// Scale channels to -1 -> +1 range
@@ -358,6 +375,8 @@ int32_t transmitter_control_update()
 		if (settings.ChannelGroups[MANUALCONTROLSETTINGS_CHANNELGROUPS_ACCESSORY0] != 
 			MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE) {
 			accessory.AccessoryVal = scaledChannel[MANUALCONTROLSETTINGS_CHANNELGROUPS_ACCESSORY0];
+			if (settings.RotateRollAndPitch == MANUALCONTROLSETTINGS_ROTATEROLLANDPITCH_ACCESSORY0)
+				yawOffset = accessory.AccessoryVal;
 			if(AccessoryDesiredInstSet(0, &accessory) != 0) //These are allocated later and that allocation might fail
 				set_manual_control_error(SYSTEMALARMS_MANUALCONTROL_ACCESSORY);
 		}
@@ -365,6 +384,8 @@ int32_t transmitter_control_update()
 		if (settings.ChannelGroups[MANUALCONTROLSETTINGS_CHANNELGROUPS_ACCESSORY1] != 
 			MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE) {
 			accessory.AccessoryVal = scaledChannel[MANUALCONTROLSETTINGS_CHANNELGROUPS_ACCESSORY1];
+			if (settings.RotateRollAndPitch == MANUALCONTROLSETTINGS_ROTATEROLLANDPITCH_ACCESSORY1)
+				yawOffset = accessory.AccessoryVal;
 			if(AccessoryDesiredInstSet(1, &accessory) != 0) //These are allocated later and that allocation might fail
 				set_manual_control_error(SYSTEMALARMS_MANUALCONTROL_ACCESSORY);
 		}
@@ -372,10 +393,15 @@ int32_t transmitter_control_update()
 		if (settings.ChannelGroups[MANUALCONTROLSETTINGS_CHANNELGROUPS_ACCESSORY2] != 
 			MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE) {
 			accessory.AccessoryVal = scaledChannel[MANUALCONTROLSETTINGS_CHANNELGROUPS_ACCESSORY2];
+			if (settings.RotateRollAndPitch == MANUALCONTROLSETTINGS_ROTATEROLLANDPITCH_ACCESSORY2)
+				yawOffset = accessory.AccessoryVal;
 			if(AccessoryDesiredInstSet(2, &accessory) != 0) //These are allocated later and that allocation might fail
 				set_manual_control_error(SYSTEMALARMS_MANUALCONTROL_ACCESSORY);
 		}
-
+		
+		// Rotate Roll and Pitch
+		if (settings.RotateRollAndPitch != MANUALCONTROLSETTINGS_ROTATEROLLANDPITCH_OFF)
+			rotate_roll_and_pitch(&cmd, yawOffset);
 	}
 
 	// Process arming outside conditional so system will disarm when disconnected.  Notice this
@@ -1078,6 +1104,146 @@ static void set_manual_control_error(SystemAlarmsManualControlOptions error_code
 
 	// AlarmSet checks only updates on toggle
 	AlarmsSet(SYSTEMALARMS_ALARM_MANUALCONTROL, (uint8_t) severity);
+}
+
+static void rotate_stick(float phi, float *x0, float *x1) {
+    float in0, in1, min2, max2;
+    float sin_phi, cos_phi;
+    float out0, out1;
+    float r2,rmax_in, rmax_in2, rmax_out;
+    float scale;
+    
+    /* save the input */
+    in0 = *x0; 
+    in1 = *x1;
+
+    /* compute the components of the rotation matrix */
+    phi *= ((float)( 2 * M_PI / 360));
+    sin_phi = sinf(phi);
+    cos_phi = cosf(phi);
+
+    /* rotate the input coordiates */
+    out0 =  cos_phi * in0 + sin_phi * in1;
+    out1 = -sin_phi * in0 + cos_phi * in1;
+
+    /*
+     * Unfortunately, the domain of roll x pitch is [-1,1]^2. 
+     * Therefore we have to rescale the result. (Otherwise a rotation of
+     * 45° of (1.0,1.0) yields (1.41, 0).
+     * 
+     * The rescaling uses a nonlinear function, that minimises the effect of rescaling 
+     * near the center.
+     */
+
+    /* get the minimum and maximum of the absolute value of the input */
+    min2 = in0*in0;
+    max2 = in1*in1;
+    r2 = min2 + max2;    /* length of the input vector ^2. We need it later */
+    if (min2 > max2) {
+        float tmp=min2;
+        min2 = max2;
+        max2 = tmp;
+    }
+
+	/* only rescale, if the vector has a reasonable size. 
+	   This test also prevents a division by zero error */
+	if (max2 > 0.0001f) {
+		/* compute the distance from the center to boundary 
+		of the domain in the direction of the input vector */
+		rmax_in2 = 1 + min2 / max2;
+		rmax_in = sqrtf(rmax_in2);
+
+		/* same for the output */
+		min2 = out0*out0;
+		max2 = out1*out1;
+		if (min2 > max2) {
+			float tmp=min2;
+			min2 = max2;
+			max2 = tmp;
+		}
+
+		/* compute the distance from the center to boundary 
+		of the domain in the direction of the output vector */
+		rmax_out = sqrtf(1 + min2 / max2);
+
+		/* compute the caling factor */
+		scale = 1 + r2 * (rmax_out - rmax_in) / (rmax_in2*rmax_in);
+    
+		/* rescale the result */
+		out0 *= scale;
+		out1 *= scale;
+	}
+
+    /* store the output */
+    *x0 = out0;
+    *x1 = out1;
+}
+
+/**
+  * Rotate roll and pitch based on the yaw attitude
+  * @param[in] cmd
+  * @param[in] yawOffset
+  */
+static void rotate_roll_and_pitch(ManualControlCommandData * cmd, float yawOffset)
+{
+	RollAndPitchRotationData rollAndPitchRotation;
+	RollAndPitchRotationGet(&rollAndPitchRotation);
+	
+	if (! RollAndPitchRotationReadOnly()) {
+		float attitudeYaw, rotation;
+		AttitudeActualData attitudeData;
+#if 0
+		AttitudeActualGet(&attitudeData);
+		attitudeYaw = attitudeData.Yaw;
+#else
+		MagnetometerData magnetometerData;
+
+		AttitudeActualGet(&attitudeData);
+		MagnetometerGet(&magnetometerData);
+		attitudeYaw = -atan2f(magnetometerData.y, magnetometerData.x) * ((float)(180.0 / M_PI));
+		while (attitudeYaw < 0)
+			attitudeYaw += 360;
+		while (attitudeYaw > 360)
+			attitudeYaw -= 360;
+#endif
+		rollAndPitchRotation.RollBeforeRotation = cmd->Roll;
+		rollAndPitchRotation.PitchBeforeRotation = cmd->Pitch;
+		rollAndPitchRotation.MagneticYaw = attitudeYaw;
+		rotation = attitudeYaw - attitudeData.Yaw;
+		while (rotation < -180)
+			rotation += 360;
+		while (rotation > 180)
+			rotation -= 360;
+		rollAndPitchRotation.YawDelta = rotation;
+
+		if (yawOffset < 0) {
+			/* disabled */
+			rollAndPitchRotation.YawOffset = -1;
+			rollAndPitchRotation.Rotation = 0;
+		} else {
+			/* convert to degrees, [0,1] -> [-10°, 370°] */
+			yawOffset -= (float)(10.0 / 360.0);
+			yawOffset *= (float)(360 + 2*10);
+			while (yawOffset < 0)
+				yawOffset += 360;
+			while (yawOffset > 360)
+				yawOffset -= 360;
+
+			if (fabs(attitudeData.Roll) < 40 && fabs(attitudeData.Pitch) < 40) {
+				rotation = attitudeYaw - yawOffset;
+				while (rotation < 0)
+					rotation += 360;
+				while (rotation > 360)
+					rotation -= 360;
+				rollAndPitchRotation.Rotation = rotation;
+			}
+			rollAndPitchRotation.YawOffset = yawOffset;
+		}
+
+		RollAndPitchRotationSet(&rollAndPitchRotation);
+	}
+	if (rollAndPitchRotation.YawOffset >= 0 && rollAndPitchRotation.Rotation)
+		rotate_stick(rollAndPitchRotation.Rotation, &(cmd->Roll), &(cmd->Pitch));
 }
 
 /**
